@@ -1,4 +1,6 @@
-from pymongo import MongoClient from datetime import datetime from config import Config
+from pymongo import MongoClient
+from datetime import datetime
+from config import Config
 
 MongoDB setup
 
