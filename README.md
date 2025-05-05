@@ -1,144 +1,81 @@
-ミ【 SFW-DOWNLOAD-BOT 】彡
+<h1 align="center">ミ彡 SFW DOWNLOAD BOT 彡ミ</h1>
 
-> Premium Telegram Media Downloader Download Instagram Reels, TikTok videos, YouTube clips, and Pinterest posts in HD, no watermark, with instant response.
+<p align="center">
+  <img src="https://img.shields.io/badge/Powered%20By-Pyrogram-blue?style=flat-square">
+  <img src="https://img.shields.io/github/license/Akash8t2/SFW-DOWNLOAD-BOT?style=flat-square">
+  <img src="https://img.shields.io/github/repo-size/Akash8t2/SFW-DOWNLOAD-BOT?style=flat-square">
+  <img src="https://img.shields.io/badge/MongoDB-Enabled-brightgreen?style=flat-square">
+</p>
 
-
-
-  
-
-
----
-
-🚀 Live Demo & Community
-
-Bot: @SFW_DOWNLOAD_BOT
-
-Support Group: ミ【 SFW 】𝗖𝗢𝗠𝗠𝗨𝗡𝗜𝗧𝗬 彡
-
-
+<p align="center">
+  <b>A premium-style Telegram bot to download videos from Instagram, TikTok, YouTube, and Pinterest without watermark.</b><br>
+  <i>Developed with love by <a href="https://t.me/SFW_Community_Official">SFW Community</a></i>
+</p>
 
 ---
 
-✨ Why SFW-DOWNLOAD-BOT?
+## 🚀 Features
 
-Feature	✨ Premium	🔄 Fast	💎 Reliable
-
-No Watermark	✅	✅	✅
-Multi-Platform	✅	✅	✅
-HD Quality	✅	✅	✅
-Inline Support	✅	✅	✅
-Admin Broadcast	✅	✅	✅
-MongoDB Logs	✅	❌	✅
-
-
+- Download from **Instagram Reels, TikTok, YouTube, Pinterest**
+- Supports **private messages**
+- Fast response and clean UI
+- Auto logs users with **MongoDB**
+- Admin-only **broadcast system**
+- Lightweight and **Heroku deployable**
+- Inline query support (coming soon)
 
 ---
 
-📦 Features
+## 🛠️ Setup & Deployment
 
-🎬 Instagram Reels: Download reels in original resolution, watermark-free.
+1. **Clone the Repository**
 
-🎵 TikTok: No watermark videos via secure APIs.
-
-▶️ YouTube: Extract audio & video streams.
-
-📌 Pinterest: Fetch and download pins seamlessly.
-
-📊 Usage Stats: MongoDB-based analytics (user joins, downloads).
-
-📡 Inline Queries: @SFW_DOWNLOAD_BOT <link> to preview and download.
-
-📢 Admin Broadcast: Send announcements to all users.
-
-🔒 Secure & Scalable: Host on Heroku or any Python-supporting platform.
-
-
-
----
-
-⚙️ Quick Start
-
-1. Clone Repo
-
-git clone https://github.com/Akash8t2/SFW-DOWNLOAD-BOT.git
+```bash
+git clone https://github.com/Akash8t2/SFW-DOWNLOAD-BOT
 cd SFW-DOWNLOAD-BOT
 
+2. Configure Environment Variables
 
-2. Install Dependencies
+Create .env file or set these in Heroku config:
+
+API_ID=your_api_id
+API_HASH=your_api_hash
+BOT_TOKEN=your_bot_token
+MONGO_DB_URI=your_mongo_db_uri
+BOT_USERNAME=@SFW_DOWNLOAD_BOT
+ADMINS=123456789
+
+3. Install Requirements
 
 pip install -r requirements.txt
 
+4. Run the Bot
 
-3. Configure Environment
-
-Create .env with:
-
-API_ID=YOUR_API_ID
-API_HASH=YOUR_API_HASH
-BOT_TOKEN=YOUR_BOT_TOKEN
-MONGO_DB_URI=YOUR_MONGO_URI
-ADMINS=123456789,987654321
-SUPPORT_GROUP_URL=https://t.me/SFW_Community_Official
-
-
-
-4. Run Locally
-
-python main.py
-
+python bot.py
 
 5. Deploy to Heroku
 
-Commit & push, then click the button: 
-
-
-
-
-
----
-
-🗂️ File Structure
-
-├── main.py           # Bot entrypoint, command & message handlers
-├── config.py         # Env & config loader
-├── requirements.txt  # Python packages
-├── Procfile          # Heroku process file
-├── runtime.txt       # Python version
-├── app.json          # Heroku Button & add-ons config
-└── utils/
-    ├── db.py         # MongoDB user & stats handlers
-    └── helpers.py    # Media download & processing logic
-
-
----
-
-🤝 Contribute
-
-1. Fork the repo ⭐
-
-
-2. Create your feature branch (git checkout -b feature/NewFeature)
-
-
-3. Commit your changes (git commit -m 'Add new feature')
-
-
-4. Push to branch (git push origin feature/NewFeature)
-
-
-5. Open a Pull Request 🚀
+Click the button below to deploy easily to Heroku:
 
 
 
 
 ---
 
-⚖️ License
+👨‍💻 Developer
 
-Released under the MIT License.
+Name: AkashXVibes
+
+Telegram Group: ミ【 SFW 】COMMUNITY 彡
+
+Bot Username: @SFW_DOWNLOAD_BOT
+
 
 
 ---
 
-> Crafted with ❤️ by AkashXVibes | Join the community 🌐
+📄 License
 
+This project is licensed under the MIT License.
+
+<p align="center"><b>Made with ❤️ by ミ【 SFW 】COMMUNITY 彡</b></p>
