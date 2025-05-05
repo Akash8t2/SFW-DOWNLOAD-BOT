@@ -1,0 +1,17 @@
+{
+  "name": "SFW Download Bot Premium",
+  "description": "Premium Telegram downloader bot for Instagram, TikTok, YouTube, and Pinterest.",
+  "repository": "https://github.com/yourusername/SFW_DownloadBot",
+  "env": {
+    "API_ID": {"description": "Telegram API ID"},
+    "API_HASH": {"description": "Telegram API Hash"},
+    "BOT_TOKEN": {"description": "Bot Token"},
+    "MONGO_DB_URI": {"description": "MongoDB URI", "required": true},
+    "ADMINS": {"description": "Comma-separated admin IDs", "value": ""},
+    "SUPPORT_GROUP_URL": {"description": "Support Group URL", "value": "https://t.me/SFW_Community_Official"},
+    "DOWNLOAD_TIMEOUT": {"description": "Download timeout (sec)", "value": "60"},
+    "MAX_VIDEO_SIZE_MB": {"description": "Max video size MB", "value": "50"}
+  },
+  "addons": ["mongolab"],
+  "buildpacks": [{"url": "heroku/python"}]
+}
