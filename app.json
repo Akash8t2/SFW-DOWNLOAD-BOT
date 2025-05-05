@@ -1,17 +1,44 @@
 {
-  "name": "SFW Download Bot Premium",
+  "name": "SFW Download Bot",
   "description": "Premium Telegram downloader bot for Instagram, TikTok, YouTube, and Pinterest.",
-  "repository": "https://github.com/yourusername/SFW_DownloadBot",
+  "repository": "https://github.com/Akash8t2/SFW-DOWNLOAD-BOT",
+  "logo": "https://raw.githubusercontent.com/Akash8t2/SFW-DOWNLOAD-BOT/main/assets/banner.png",
+  "keywords": ["telegram","bot","download","video","mongodb"],
   "env": {
-    "API_ID": {"description": "Telegram API ID"},
-    "API_HASH": {"description": "Telegram API Hash"},
-    "BOT_TOKEN": {"description": "Bot Token"},
-    "MONGO_DB_URI": {"description": "MongoDB URI", "required": true},
-    "ADMINS": {"description": "Comma-separated admin IDs", "value": ""},
-    "SUPPORT_GROUP_URL": {"description": "Support Group URL", "value": "https://t.me/SFW_Community_Official"},
-    "DOWNLOAD_TIMEOUT": {"description": "Download timeout (sec)", "value": "60"},
-    "MAX_VIDEO_SIZE_MB": {"description": "Max video size MB", "value": "50"}
+    "API_ID": {
+      "description": "Telegram API ID",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Telegram API Hash",
+      "required": true
+    },
+    "BOT_TOKEN": {
+      "description": "Bot Token from BotFather",
+      "required": true
+    },
+    "MONGO_DB_URI": {
+      "description": "MongoDB connection URI (e.g. from MongoDB Atlas)",
+      "required": true
+    },
+    "ADMINS": {
+      "description": "Comma-separated admin user IDs",
+      "value": "123456789"
+    },
+    "SUPPORT_GROUP_URL": {
+      "description": "Support group link",
+      "value": "https://t.me/SFW_Community_Official"
+    },
+    "DOWNLOAD_TIMEOUT": {
+      "description": "Download timeout (seconds)",
+      "value": "60"
+    },
+    "MAX_VIDEO_SIZE_MB": {
+      "description": "Max video size (MB)",
+      "value": "50"
+    }
   },
-  "addons": ["mongolab"],
-  "buildpacks": [{"url": "heroku/python"}]
+  "buildpacks": [
+    { "url": "heroku/python" }
+  ]
 }
