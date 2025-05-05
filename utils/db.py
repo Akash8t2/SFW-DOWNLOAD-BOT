@@ -2,7 +2,7 @@ from pymongo import MongoClient
 from datetime import datetime
 from config import Config
 
-MongoDB setup
+# MongoDB setup
 
 client = MongoClient(Config.MONGO_DB_URI) db = client['SFWDownloadBot'] users = db['users']
 
