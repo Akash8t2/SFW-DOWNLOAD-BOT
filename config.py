@@ -16,4 +16,4 @@ class Config:
     BROADCAST_BUTTON_LABEL = os.getenv("BROADCAST_BUTTON_LABEL", "📢 Broadcast")
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     DOWNLOAD_TIMEOUT = int(os.getenv("DOWNLOAD_TIMEOUT", "60"))
-    MAX_VIDEO_SIZE_MB = int(os.getenv("MAX_VIDEO_SIZE_MB", "500"))
+    MAX_VIDEO_SIZE_MB = int(os.getenv("MAX_VIDEO_SIZE_MB", "50"))
