@@ -11,12 +11,20 @@ os.makedirs(download_path, exist_ok=True)
 
 async def download_media(message: Message, premium: bool):
     url = message.text.strip()
+    
+    # Default options for yt-dlp
     opts = {
         "format": "best",
         "outtmpl": os.path.join(download_path, "%(id)s.%(ext)s"),
         "noplaylist": True,
         "quiet": True,
     }
+
+    # Add cookies support
+    cookies_path = "youtube_cookies.txt"
+    if os.path.exists(cookies_path):
+        opts["cookiefile"] = cookies_path
+
     loop = asyncio.get_event_loop()
 
     def run_download():
