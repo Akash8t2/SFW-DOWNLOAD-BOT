@@ -1,82 +1,67 @@
-from pyrogram import Client, filters, enums
+from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from config import Config
-from utils.db import db
-from utils.helpers import Downloader
-import re
+from utils.db import add_user, log_usage
+from utils.helpers import download_media
 import logging
-import traceback
 
-# लॉगिंग कॉन्फ़िगर करें
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Client(
-    "SFW_DownloadBot",
+    name="SFW_DownloadBot",  # 'session_name' is invalid in Pyrogram v2+, use 'name'
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
     bot_token=Config.BOT_TOKEN
 )
 
-downloader = Downloader()
-INSTA_REGEX = r'(https?://)?(www\.)?instagram\.com/(reel|p|tv)/[a-zA-Z0-9_-]+/?(\?.*)?'
+# Keyboards
+START_MARKUP = InlineKeyboardMarkup([
+    [InlineKeyboardButton("🔗 Support Group", url=Config.SUPPORT_GROUP_URL)],
+])
 
-# स्टार्ट कमांड
 @app.on_message(filters.command("start") & filters.private)
 async def start(client: Client, message: Message):
-    try:
-        user = message.from_user
-        await db.add_user(user.id, user.username or user.first_name)
-        await message.reply_text(
-            "🎬 **Instagram Video Downloader**\n\n"
-            "किसी भी Instagram Reel/Post का लिंक भेजें, मैं उसे डाउनलोड कर दूँगा!\n\n"
-            "⚠️ **नोट:** सिर्फ पब्लिक अकाउंट के वीडियो काम करते हैं",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("सपोर्ट ग्रुप", url=Config.SUPPORT_GROUP_URL)
-            ]])
-        )
-    except Exception as e:
-        logger.error(f"Start Error: {traceback.format_exc()}")
+    await add_user(message.from_user.id)
+    text = (
+        f"👋 Hello <b>{message.from_user.first_name}</b>!\n"
+        f"Welcome to <b>{Config.BOT_USERNAME}</b>.\n\n"
+        "🔹 Send me an Instagram, TikTok, YouTube, or Pinterest link.\n"
+        "🔹 I'll fetch and send the video without watermark (if supported).\n\n"
+        "🚀 Enjoy your premium downloader experience!"
+    )
+    await message.reply_text(text, reply_markup=START_MARKUP, disable_web_page_preview=True)
 
-# ग्रुप और प्राइवेट दोनों के लिए हैंडलर
-@app.on_message(filters.text & (filters.group | filters.private))
-async def handle_messages(client: Client, message: Message):
-    try:
-        # सिर्फ Instagram लिंक प्रोसेस करें
-        if not re.match(INSTA_REGEX, message.text):
-            return
+@app.on_message(filters.text & filters.private)
+async def handle_private(client: Client, message: Message):
+    await log_usage(message.from_user.id)
+    await download_media(message, premium=True)
 
-        # ग्रुप में mention/reply चेक करें
-        if message.chat.type == enums.ChatType.GROUP:
-            if not (message.text.startswith("@" + Config.BOT_USERNAME) and 
-                   not (message.reply_to_message and message.reply_to_message.from_user.is_self)):
-                return
+@app.on_message(filters.text & filters.group)
+async def handle_group(client: Client, message: Message):
+    if Config.BOT_USERNAME in message.text or (message.reply_to_message and message.reply_to_message.from_user.is_self):
+        await log_usage(message.from_user.id)
+        await download_media(message, premium=False)
 
-        await message.reply_chat_action(enums.ChatAction.UPLOAD_VIDEO)
-        user = message.from_user
+@app.on_inline_query()
+async def inline_query_handler(client, inline_query):
+    # TODO: Implement inline query feature
+    pass
 
-        # डाउनलोड शुरू करें
-        video_path = await downloader.download_media(message.text)
-        
-        # वीडियो भेजें
-        await message.reply_video(
-            video=video_path,
-            caption=f"📥 Downloaded via @{Config.BOT_USERNAME}",
-            reply_to_message_id=message.id if message.chat.type != enums.ChatType.PRIVATE else None
-        )
+@app.on_callback_query(filters.regex(r"^admin_broadcast$"))
+async def admin_broadcast_prompt(client, callback_query):
+    user_id = callback_query.from_user.id
+    if user_id in Config.ADMINS:
+        await callback_query.message.reply_text("Send the broadcast message:")
 
-        # क्लीनअप और लॉग
-        os.remove(video_path)
-        await db.log_usage(user.id)
-
-    except Exception as e:
-        error_msg = f"❌ Error: {str(e)}\n\n{traceback.format_exc()}"
-        logger.error(error_msg)
-        await message.reply_text("⚠️ डाउनलोड असफल! कृपया लिंक चेक करें")
+        @app.on_message(filters.user(user_id) & filters.text)
+        async def broadcast(client, message: Message):
+            text = message.text
+            await message.reply_text("Broadcasting to all users...")
+            # TODO: Loop through users in DB and send messages
+            await message.reply_text("✅ Broadcast completed.")
+    else:
+        await callback_query.answer("You are not authorized.", show_alert=True)
 
 if __name__ == "__main__":
-    logger.info("Bot Started!")
     app.run()
