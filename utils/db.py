@@ -1,53 +1,32 @@
-from datetime import datetime
-from typing import Dict, Optional
 from pymongo import MongoClient
-from pymongo.errors import PyMongoError
+from datetime import datetime
 from config import Config
-import logging
 
-logger = logging.getLogger(__name__)
+client = MongoClient(Config.MONGO_DB_URI)
+db = client['SFWDownloadBot']
+users = db['users']
 
-class Database:
-    def __init__(self):
-        self.client = MongoClient(Config.MONGO_DB_URI)
-        self.db = self.client[Config.MONGO_DB_NAME]
-        self.users = self.db.users
-        self._create_indexes()
+async def add_user(user_id: int):
+    if not users.find_one({"_id": user_id}):
+        users.insert_one({
+            "_id": user_id,
+            "joined": datetime.utcnow(),
+            "downloads": 0,
+            "premium": False
+        })
 
-    def _create_indexes(self):
-        try:
-            self.users.create_index("downloads", background=True)
-            self.users.create_index("premium", background=True)
-        except PyMongoError as e:
-            logger.error(f"Index Error: {str(e)}")
+async def log_usage(user_id: int):
+    users.update_one({"_id": user_id}, {"$inc": {"downloads": 1}})
 
-    async def add_user(self, user_id: int, username: str) -> bool:
-        try:
-            result = self.users.update_one(
-                {"_id": user_id},
-                {"$setOnInsert": {
-                    "username": username,
-                    "joined": datetime.utcnow(),
-                    "downloads": 0,
-                    "premium": False
-                }},
-                upsert=True
-            )
-            return result.upserted_id is not None
-        except PyMongoError as e:
-            logger.error(f"Add User Error: {str(e)}")
-            return False
+async def set_premium(user_id: int, status: bool = True):
+    users.update_one({"_id": user_id}, {"$set": {"premium": status}})
 
-    async def log_usage(self, user_id: int) -> bool:
-        try:
-            result = self.users.update_one(
-                {"_id": user_id},
-                {"$inc": {"downloads": 1}}
-            )
-            return result.modified_count > 0
-        except PyMongoError as e:
-            logger.error(f"Log Usage Error: {str(e)}")
-            return False
+async def get_user_stats(user_id: int) -> dict:
+    return users.find_one({"_id": user_id}, {"_id": 0}) or {}
 
-# Singleton Instance
-db = Database()
+async def total_users() -> int:
+    return users.count_documents({})
+
+async def top_downloaders(limit: int = 10) -> list:
+    cursor = users.find({}).sort("downloads", -1).limit(limit)
+    return list(cursor)
