@@ -1,34 +1,39 @@
-import os
-import asyncio
-from pyrogram.types import Message
-import yt_dlp
+from pymongo import MongoClient
+from datetime import datetime
 from config import Config
 
-DOWNLOAD_PATH = "downloads"
+# MongoDB setup
+client = MongoClient(Config.MONGO_DB_URI)
+db = client['SFWDownloadBot']
+users = db['users']
 
-async def download_media(message: Message, premium: bool):
-    url = message.text.strip()
-    opts = {
-        "format": "best",
-        "outtmpl": os.path.join(DOWNLOAD_PATH, "%(id)s.%(ext)s"),
-        "noplaylist": True
-    }
-    loop = asyncio.get_event_loop()
-    def run_download():
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            file_path = ydl.prepare_filename(info)
-            return info, file_path
+async def add_user(user_id: int):
+    """Add a new user to the database with join timestamp and initial download count."""
+    if not users.find_one({"_id": user_id}):
+        users.insert_one({
+            "_id": user_id,
+            "joined": datetime.utcnow(),  # UTC timestamp of first interaction
+            "downloads": 0,               # Count of videos downloaded
+            "premium": False              # Premium flag (can be updated later)
+        })
 
-    try:
-        info, file_path = await loop.run_in_executor(None, run_download)
-        size_mb = os.path.getsize(file_path) / (1024 * 1024)
-        caption = f"Downloaded via {Config.BOT_USERNAME}\n{info.get('title')}"
-        if size_mb > Config.MAX_VIDEO_SIZE_MB:
-            await message.reply_text(f"File too large ({size_mb:.2f} MB). Here's the link:", disable_web_page_preview=True)
-            await message.reply_text(info.get('url'))
-        else:
-            await message.reply_video(file_path, caption=caption)
-        os.remove(file_path)
-    except Exception as e:
-        await message.reply_text("❌ Download failed. Try again later.")
+async def log_usage(user_id: int):
+    """Increment the download counter for a user every time they request a video."""
+    users.update_one({"_id": user_id}, {"$inc": {"downloads": 1}})
+
+async def set_premium(user_id: int, status: bool = True):
+    """Update a user's premium status."""
+    users.update_one({"_id": user_id}, {"$set": {"premium": status}})
+
+async def get_user_stats(user_id: int) -> dict:
+    """Fetch user statistics (join date, downloads, premium status)."""
+    return users.find_one({"_id": user_id}, {"_id": 0})
+
+async def total_users() -> int:
+    """Return the total number of users in the bot."""
+    return users.count_documents({})
+
+async def top_downloaders(limit: int = 10) -> list:
+    """Return a list of top users by download count."""
+    cursor = users.find({}).sort("downloads", -1).limit(limit)
+    return list(cursor)
