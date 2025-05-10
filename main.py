@@ -1,32 +1,107 @@
-from pymongo import MongoClient
-from datetime import datetime
+import os
+import logging
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from config import Config
+from utils.db import add_user, log_usage, total_users, get_user_stats, users as users_col
+from utils.helpers import download_media
 
-client = MongoClient(Config.MONGO_DB_URI)
-db = client['SFWDownloadBot']
-users = db['users']
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-async def add_user(user_id: int):
-    if not users.find_one({"_id": user_id}):
-        users.insert_one({
-            "_id": user_id,
-            "joined": datetime.utcnow(),
-            "downloads": 0,
-            "premium": False
-        })
+# Ensure downloads folder
+os.makedirs(Config.DOWNLOAD_PATH if hasattr(Config, 'DOWNLOAD_PATH') else "downloads", exist_ok=True)
 
-async def log_usage(user_id: int):
-    users.update_one({"_id": user_id}, {"$inc": {"downloads": 1}})
+app = Client(
+    name="SFW_DownloadBot",
+    api_id=Config.API_ID,
+    api_hash=Config.API_HASH,
+    bot_token=Config.BOT_TOKEN
+)
 
-async def set_premium(user_id: int, status: bool = True):
-    users.update_one({"_id": user_id}, {"$set": {"premium": status}})
+START_MARKUP = InlineKeyboardMarkup([
+    [InlineKeyboardButton("🔗 Support Group", url=Config.SUPPORT_GROUP_URL)],
+    [InlineKeyboardButton("📊 My Stats", callback_data="stats")],
+    [InlineKeyboardButton("📢 Broadcast", callback_data="admin_broadcast")]
+])
 
-async def get_user_stats(user_id: int) -> dict:
-    return users.find_one({"_id": user_id}, {"_id": 0}) or {}
+# Track admins awaiting broadcast messages
+pending_broadcast_admins = set()
 
-async def total_users() -> int:
-    return users.count_documents({})
+@app.on_message(filters.command("start") & filters.private)
+async def start(client: Client, message: Message):
+    await add_user(message.from_user.id)
+    text = (
+        f"👋 Hello <b>{message.from_user.first_name}</b>!\n"
+        f"Welcome to <b>{Config.BOT_USERNAME}</b>.\n\n"
+        "🔹 Send me an Instagram, TikTok, YouTube, or Pinterest link.\n"
+        "🔹 I'll fetch and send the video without watermark (if supported).\n\n"
+        "🚀 Enjoy your premium downloader experience!"
+    )
+    await message.reply_text(text, reply_markup=START_MARKUP, disable_web_page_preview=True)
 
-async def top_downloaders(limit: int = 10) -> list:
-    cursor = users.find({}).sort("downloads", -1).limit(limit)
-    return list(cursor)
+@app.on_message(filters.private & filters.text)
+async def private_handler(client: Client, message: Message):
+    user_id = message.from_user.id
+    await add_user(user_id)
+
+    # Broadcast flow
+    if user_id in pending_broadcast_admins:
+        pending_broadcast_admins.remove(user_id)
+        await message.reply_text("📤 Broadcasting to all users...", quote=True)
+        total = await total_users()
+        count = 0
+        for u in users_col.find({}, {"_id": 1}):
+            try:
+                await client.send_message(chat_id=u["_id"], text=message.text)
+                count += 1
+            except Exception:
+                continue
+        await message.reply_text(f"✅ Broadcast completed. Sent to {count}/{total} users.", quote=True)
+        return
+
+    # Download flow
+    if not message.text.startswith("http"):
+        return
+
+    await log_usage(user_id)
+    stats = await get_user_stats(user_id)
+    premium = stats.get("premium", False)
+    await download_media(message, premium)
+
+@app.on_message(filters.group & filters.text)
+async def group_handler(client: Client, message: Message):
+    # Only process if message contains a URL
+    if not message.text or "http" not in message.text:
+        return
+
+    user_id = message.from_user.id
+    await add_user(user_id)
+    await log_usage(user_id)
+    stats = await get_user_stats(user_id)
+    premium = stats.get("premium", False)
+    await download_media(message, premium)
+
+@app.on_callback_query(filters.regex(r"^stats$"))
+async def stats_callback(client, callback_query):
+    stats = await get_user_stats(callback_query.from_user.id)
+    text = (
+        f"📊 Your Stats:\n"
+        f"• Joined: {stats.get('joined', 'N/A')}\n"
+        f"• Downloads: {stats.get('downloads', 0)}\n"
+        f"• Premium: {'Yes' if stats.get('premium') else 'No'}"
+    )
+    await callback_query.answer()
+    await callback_query.message.reply_text(text)
+
+@app.on_callback_query(filters.regex(r"^admin_broadcast$"))
+async def admin_broadcast_prompt(client, callback_query):
+    user_id = callback_query.from_user.id
+    if user_id in Config.ADMINS:
+        pending_broadcast_admins.add(user_id)
+        await callback_query.message.reply_text("✉️ Send the broadcast message:", quote=True)
+    else:
+        await callback_query.answer("You are not authorized.", show_alert=True)
+
+if __name__ == "__main__":
+    app.run()
