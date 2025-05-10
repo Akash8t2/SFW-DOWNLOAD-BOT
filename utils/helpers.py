@@ -5,25 +5,27 @@ from pyrogram.types import Message
 import yt_dlp
 from config import Config
 
-# Ensure the download directory exists
+# Ensure download directory exists
 download_path = Config.DOWNLOAD_PATH if hasattr(Config, 'DOWNLOAD_PATH') else "downloads"
 os.makedirs(download_path, exist_ok=True)
 
+# Path to cookies file
+COOKIES_FILE = "youtube_cookies.txt"  # You already added this in your repo
+
 async def download_media(message: Message, premium: bool):
     url = message.text.strip()
-    
-    # Default options for yt-dlp
+
     opts = {
         "format": "best",
         "outtmpl": os.path.join(download_path, "%(id)s.%(ext)s"),
         "noplaylist": True,
         "quiet": True,
+        "geo_bypass": True,
     }
 
-    # Add cookies support
-    cookies_path = "youtube_cookies.txt"
-    if os.path.exists(cookies_path):
-        opts["cookiefile"] = cookies_path
+    # Add cookies if file exists
+    if os.path.exists(COOKIES_FILE):
+        opts["cookiefile"] = COOKIES_FILE
 
     loop = asyncio.get_event_loop()
 
@@ -37,7 +39,6 @@ async def download_media(message: Message, premium: bool):
         info, file_path = await loop.run_in_executor(None, run_download)
         size_mb = os.path.getsize(file_path) / (1024 * 1024)
 
-        # Restrict non-premium users
         if not premium and size_mb > Config.MAX_VIDEO_SIZE_MB:
             await message.reply_text(
                 f"❌ File too large ({size_mb:.2f} MB). Only premium users can download videos over {Config.MAX_VIDEO_SIZE_MB} MB.",
@@ -48,7 +49,6 @@ async def download_media(message: Message, premium: bool):
 
         caption = f"Downloaded via {Config.BOT_USERNAME}\n{info.get('title')}"
 
-        # If even premium users exceed Telegram's max video size, send a link
         if size_mb > Config.MAX_VIDEO_SIZE_MB and premium:
             await message.reply_text(
                 f"⚠️ File size is {size_mb:.2f} MB, sending link instead:",
