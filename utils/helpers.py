@@ -1,20 +1,51 @@
 import os
+import re
 import asyncio
 import logging
+import requests
 from pyrogram.types import Message
 import yt_dlp
 from config import Config
 
-# Ensure download directory exists
-download_path = Config.DOWNLOAD_PATH if hasattr(Config, 'DOWNLOAD_PATH') else "downloads"
+# Setup download path
+download_path = getattr(Config, 'DOWNLOAD_PATH', 'downloads')
 os.makedirs(download_path, exist_ok=True)
 
-# Path to cookies file
-COOKIES_FILE = "youtube_cookies.txt"  # You already added this in your repo
+COOKIES_FILE = "youtube_cookies.txt"
 
+# === Terabox Helpers ===
+def is_terabox_link(url: str):
+    return "terabox.com" in url or "4funbox.com" in url
+
+def get_terabox_direct_link(url: str):
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.get(url, headers=headers)
+        match = re.search(r'"downloadUrl":"(.*?)"', res.text)
+        if match:
+            return match.group(1).replace('\\u002F', '/')
+    except Exception as e:
+        logging.error(f"Terabox extraction failed: {e}")
+    return None
+
+# === Main Handler ===
 async def download_media(message: Message, premium: bool):
     url = message.text.strip()
 
+    # Terabox handling
+    if is_terabox_link(url):
+        direct_link = get_terabox_direct_link(url)
+        if direct_link:
+            await message.reply_text(
+                f"✅ Direct download link found:\n<a href='{direct_link}'>Click to Download</a>",
+                disable_web_page_preview=False,
+                quote=True
+            )
+        else:
+            await message.reply_text("❌ Failed to extract Terabox video link.", quote=True)
+        return
+
+    # Other sources using yt_dlp
     opts = {
         "format": "best",
         "outtmpl": os.path.join(download_path, "%(id)s.%(ext)s"),
@@ -23,7 +54,6 @@ async def download_media(message: Message, premium: bool):
         "geo_bypass": True,
     }
 
-    # Add cookies if file exists
     if os.path.exists(COOKIES_FILE):
         opts["cookiefile"] = COOKIES_FILE
 
