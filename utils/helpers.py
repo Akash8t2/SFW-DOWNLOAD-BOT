@@ -19,33 +19,38 @@ def is_terabox_link(url: str):
 
 def get_terabox_direct_link(url: str):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers)
-        match = re.search(r'"downloadUrl":"(.*?)"', res.text)
-        if match:
-            return match.group(1).replace('\\u002F', '/')
+        api_url = f"https://terabox.cosybrandoool.workers.dev/?url={url}"
+        response = requests.get(api_url)
+        if response.status_code == 200:
+            return response.json()
     except Exception as e:
-        logging.error(f"Terabox extraction failed: {e}")
+        logging.error(f"Terabox API call failed: {e}")
     return None
 
 # === Main Handler ===
 async def download_media(message: Message, premium: bool):
     url = message.text.strip()
 
-    # Terabox handling
+    # === Terabox handling ===
     if is_terabox_link(url):
-        direct_link = get_terabox_direct_link(url)
-        if direct_link:
-            await message.reply_text(
-                f"✅ Direct download link found:\n<a href='{direct_link}'>Click to Download</a>",
-                disable_web_page_preview=False,
+        data = get_terabox_direct_link(url)
+        if data:
+            caption = (
+                f"**{data['file_name']}**\n"
+                f"**Size:** `{data['size']}`\n\n"
+                f"[Direct Download Link]({data['direct_link']})"
+            )
+            await message.reply_photo(
+                photo=data["thumb"],
+                caption=caption,
+                parse_mode="markdown",
                 quote=True
             )
         else:
-            await message.reply_text("❌ Failed to extract Terabox video link.", quote=True)
+            await message.reply_text("❌ Failed to extract Terabox link.", quote=True)
         return
 
-    # Other sources using yt_dlp
+    # === Other sources via yt_dlp ===
     opts = {
         "format": "best",
         "outtmpl": os.path.join(download_path, "%(id)s.%(ext)s"),
