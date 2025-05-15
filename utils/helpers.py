@@ -5,36 +5,36 @@ from pyrogram.types import Message
 import yt_dlp
 from config import Config
 
-# Setup download directory
 download_path = getattr(Config, 'DOWNLOAD_PATH', 'downloads')
 os.makedirs(download_path, exist_ok=True)
 
 COOKIES_FILE = "youtube_cookies.txt"
 
-# Download function with real-time progress
 async def download_media(message: Message, premium: bool):
     url = message.text.strip()
     status_msg = await message.reply_text("📥 Starting download...")
 
     progress_data = {"last_percent": 0}
+    loop = asyncio.get_running_loop()
 
     def progress_hook(d):
         if d["status"] == "downloading":
-            percent = d.get("_percent_str", "").strip()
+            percent_str = d.get("_percent_str", "").strip()
             try:
-                percent_value = int(float(percent.strip('%')))
-                if percent_value - progress_data["last_percent"] >= 1:  # update every 5%
+                percent_value = int(float(percent_str.strip('%')))
+                # Update every 5% or more
+                if percent_value - progress_data["last_percent"] >= 5:
                     progress_data["last_percent"] = percent_value
                     asyncio.run_coroutine_threadsafe(
-                        status_msg.edit_text(f"📥 Downloading... {percent}"),
-                        asyncio.get_event_loop()
+                        status_msg.edit_text(f"📥 Downloading... {percent_str}"),
+                        loop
                     )
             except Exception:
                 pass
         elif d["status"] == "finished":
             asyncio.run_coroutine_threadsafe(
                 status_msg.edit_text("✅ Download finished. Uploading..."),
-                asyncio.get_event_loop()
+                loop
             )
 
     opts = {
@@ -48,8 +48,6 @@ async def download_media(message: Message, premium: bool):
 
     if os.path.exists(COOKIES_FILE):
         opts["cookiefile"] = COOKIES_FILE
-
-    loop = asyncio.get_event_loop()
 
     def run_download():
         with yt_dlp.YoutubeDL(opts) as ydl:
@@ -76,4 +74,4 @@ async def download_media(message: Message, premium: bool):
 
     except Exception as e:
         logging.exception("Download failed")
-        await message.reply_text("❌ Download failed. Try again later.", quote=True)
+        await message.reply_text(f"❌ Download failed. Try again later.\nError: {e}", quote=True)
