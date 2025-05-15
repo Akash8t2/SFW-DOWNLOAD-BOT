@@ -12,34 +12,38 @@ os.makedirs(download_path, exist_ok=True)
 COOKIES_FILE = "youtube_cookies.txt"
 
 async def download_media(message: Message, premium: bool):
-    url = message.text.strip().split('?')[0]  # Clean URL
+    # Clean URL and strip query parameters
+    url = message.text.strip().split('?')[0]
     status_msg = await message.reply_text("📥 Starting download...")
 
-    # Progress tracking
+    # Capture the running loop once
+    loop = asyncio.get_running_loop()
     progress_data = {"last_percent": 0}
 
+    # This hook will run in yt_dlp's thread, but schedule edits in our loop
     def progress_hook(d):
-        if d.get("status") == "downloading":
+        status = d.get("status")
+        if status == "downloading":
             percent_str = d.get("_percent_str", "").strip()
             try:
-                percent_val = int(float(percent_str.strip('%')))
-                if percent_val - progress_data["last_percent"] >= 2:
-                    progress_data["last_percent"] = percent_val
-                    asyncio.run_coroutine_threadsafe(
-                        status_msg.edit_text(f"📥 Downloading... {percent_str}"),
-                        asyncio.get_event_loop()
-                    )
+                val = int(float(percent_str.strip('%')))
             except Exception:
-                pass
-        elif d.get("status") == "finished":
-            asyncio.run_coroutine_threadsafe(
-                status_msg.edit_text("✅ Download finished. Uploading..."),
-                asyncio.get_event_loop()
-            )
+                return
+            # Only update every 2% to avoid flooding
+            if val - progress_data["last_percent"] >= 2:
+                progress_data["last_percent"] = val
+                # schedule the coroutine to edit the message
+                coro = status_msg.edit_text(f"📥 Downloading... {percent_str}")
+                asyncio.run_coroutine_threadsafe(coro, loop)
 
+        elif status == "finished":
+            coro = status_msg.edit_text("✅ Download finished. Uploading...")
+            asyncio.run_coroutine_threadsafe(coro, loop)
+
+    # Determine if this is an Instagram URL
     is_instagram = "instagram.com" in url.lower()
 
-    # yt-dlp options
+    # Build yt-dlp options
     opts = {
         "format": "best",
         "outtmpl": os.path.join(download_path, "%(id)s.%(ext)s"),
@@ -50,12 +54,11 @@ async def download_media(message: Message, premium: bool):
         "progress_hooks": [progress_hook],
     }
 
-    # Use cookies only for non-Instagram
+    # Only use cookies for non-Instagram (e.g. YouTube age-restricted)
     if os.path.exists(COOKIES_FILE) and not is_instagram:
         opts["cookiefile"] = COOKIES_FILE
 
-    loop = asyncio.get_event_loop()
-
+    # Blocking download in thread
     def run_download():
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -66,16 +69,18 @@ async def download_media(message: Message, premium: bool):
         info, file_path = await loop.run_in_executor(None, run_download)
         size_mb = os.path.getsize(file_path) / (1024 * 1024)
 
-        # Premium size check
+        # Enforce premium limit
         if not premium and size_mb > Config.MAX_VIDEO_SIZE_MB:
             await message.reply_text(
-                f"❌ File too large ({size_mb:.2f} MB). Only premium users can download videos over {Config.MAX_VIDEO_SIZE_MB} MB.",
+                f"❌ File too large ({size_mb:.2f} MB). "
+                f"Only premium users can download videos over "
+                f"{Config.MAX_VIDEO_SIZE_MB} MB.",
                 quote=True
             )
             os.remove(file_path)
             return
 
-        # Send video
+        # Finally send the video
         caption = f"Downloaded via @{Config.BOT_USERNAME}\n{info.get('title') or ''}"
         await message.reply_video(file_path, caption=caption, quote=True)
 
