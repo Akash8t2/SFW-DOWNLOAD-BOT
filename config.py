@@ -17,3 +17,6 @@ class Config:
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     DOWNLOAD_TIMEOUT = int(os.getenv("DOWNLOAD_TIMEOUT", "60"))
     MAX_VIDEO_SIZE_MB = int(os.getenv("MAX_VIDEO_SIZE_MB", "50"))
+    HEROKU_API_KEY = os.environ.get("")
+HEROKU_APP_NAME = os.environ.get("")
+OWNER_ID = int(os.environ.get("OWNER_ID", 5397621246))  # your Telegram user ID
