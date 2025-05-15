@@ -29,7 +29,7 @@ async def start(client: Client, message: Message):
     text = (
         f"👋 Hello <b>{message.from_user.first_name}</b>!\n"
         f"Welcome to <b>{Config.BOT_USERNAME}</b>.\n\n"
-        "🔹 Send me an Instagram, TikTok, YouTube, or Pinterest link.\n"
+        "🔹 Send me an Instagram, TikTok, YouTube, Pinterest, or Terabox link.\n"
         "🔹 I'll fetch and send the video without watermark (if supported).\n\n"
         "🚀 Enjoy your premium downloader experience!"
     )
@@ -94,7 +94,7 @@ async def handle_group(client: Client, message: Message):
 async def inline_query_handler(client, inline_query):
     pass
 
-# Admin Broadcast (incomplete setup)
+# Admin Broadcast (optional incomplete setup)
 pending_broadcast_admins = set()
 
 @app.on_callback_query(filters.regex(r"^admin_broadcast$"))
