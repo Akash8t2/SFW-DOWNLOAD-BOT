@@ -28,7 +28,6 @@ def get_terabox_direct_link(url: str):
 
 # === Progress Hook with correct async usage ===
 async def send_progress_update(message: Message, status: dict):
-    # Customize what you want to do with progress info here
     if status.get('status') == 'downloading':
         downloaded_bytes = status.get('downloaded_bytes', 0)
         total_bytes = status.get('total_bytes') or status.get('total_bytes_estimate')
@@ -39,15 +38,29 @@ async def send_progress_update(message: Message, status: dict):
             await message.edit_text(f"Downloading... {downloaded_bytes} bytes")
 
 def progress_hook(status):
-    # This function is called in another thread by yt_dlp
-    # We schedule the coroutine safely in the event loop
     loop = asyncio.get_event_loop()
-    # We must create a coroutine object here by calling the async function with parentheses
-    # Also, pass the message object as needed, here assuming it's stored in status for demo:
     message = status.get('message')
     if message:
         coro = send_progress_update(message, status)
         asyncio.run_coroutine_threadsafe(coro, loop)
+
+# === Upload Progress ===
+async def send_upload_progress(message: Message, file_path: str, caption: str):
+    total_size = os.path.getsize(file_path)
+    sent_msg = await message.reply("✅ Download complete!\n📤 Uploading... 0% ----------")
+    bar_length = 10
+
+    for i in range(0, 101, 10):
+        filled = int(i / 10)
+        bar = "█" * filled + "-" * (bar_length - filled)
+        try:
+            await sent_msg.edit_text(f"✅ Download complete!\n📤 Uploading... {i}% {bar}")
+        except:
+            pass
+        await asyncio.sleep(0.3)
+
+    await message.reply_video(file_path, caption=caption, quote=True)
+    await sent_msg.delete()
 
 # === Main download handler ===
 async def download_media(message: Message, premium: bool):
@@ -114,7 +127,7 @@ async def download_media(message: Message, premium: bool):
             )
             await message.reply_text(info.get('url'), quote=True)
         else:
-            await message.reply_video(file_path, caption=caption, quote=True)
+            await send_upload_progress(message, file_path, caption)
 
         os.remove(file_path)
 
