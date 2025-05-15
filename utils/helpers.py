@@ -6,24 +6,25 @@ download_path = Config.DOWNLOAD_PATH if hasattr(Config, 'DOWNLOAD_PATH') else "d
 
 COOKIES_FILE = "youtube_cookies.txt"
 
-async def download_media(message: Message, premium: bool): url = message.text.strip().split('?')[0]  # Clean query strings status_msg = await message.reply_text("📥 Starting download...")
+async def download_media(message: Message, premium: bool): # Clean URL and remove query parameters url = message.text.strip().split('?')[0] status_msg = await message.reply_text("📥 Starting download...")
 
+# For tracking progress updates
 progress_data = {"last_percent": 0}
 
 def progress_hook(d):
-    if d["status"] == "downloading":
-        percent = d.get("_percent_str", "").strip()
+    if d.get("status") == "downloading":
+        percent_str = d.get("_percent_str", "").strip()
         try:
-            percent_value = int(float(percent.strip('%')))
-            if percent_value - progress_data["last_percent"] >= 2:
-                progress_data["last_percent"] = percent_value
+            percent_val = int(float(percent_str.strip('%')))
+            if percent_val - progress_data["last_percent"] >= 2:
+                progress_data["last_percent"] = percent_val
                 asyncio.run_coroutine_threadsafe(
-                    status_msg.edit_text(f"📥 Downloading... {percent}"),
+                    status_msg.edit_text(f"📥 Downloading... {percent_str}"),
                     asyncio.get_event_loop()
                 )
-        except:
+        except Exception:
             pass
-    elif d["status"] == "finished":
+    elif d.get("status") == "finished":
         asyncio.run_coroutine_threadsafe(
             status_msg.edit_text("✅ Download finished. Uploading..."),
             asyncio.get_event_loop()
@@ -32,6 +33,7 @@ def progress_hook(d):
 # Determine if URL is Instagram
 is_instagram = "instagram.com" in url.lower()
 
+# Build yt-dlp options
 opts = {
     "format": "best",
     "outtmpl": os.path.join(download_path, "%(id)s.%(ext)s"),
@@ -42,7 +44,7 @@ opts = {
     "progress_hooks": [progress_hook],
 }
 
-# Include cookies for non-Instagram (e.g., YouTube age-restricted)
+# Use cookies for non-Instagram (e.g., YouTube age-restricted)
 if os.path.exists(COOKIES_FILE) and not is_instagram:
     opts["cookiefile"] = COOKIES_FILE
 
@@ -58,6 +60,7 @@ try:
     info, file_path = await loop.run_in_executor(None, run_download)
     size_mb = os.path.getsize(file_path) / (1024 * 1024)
 
+    # Enforce premium limit
     if not premium and size_mb > Config.MAX_VIDEO_SIZE_MB:
         await message.reply_text(
             f"❌ File too large ({size_mb:.2f} MB). Only premium users can download videos over {Config.MAX_VIDEO_SIZE_MB} MB.",
@@ -66,12 +69,17 @@ try:
         os.remove(file_path)
         return
 
-    caption = f"Downloaded via {Config.BOT_USERNAME}\n{info.get('title') or ''}"
-    await message.reply_video(file_path, caption=caption, quote=True)
+    # Send the file
+    caption = f"Downloaded via {Config.BOT_USERNAME}
 
-    os.remove(file_path)
+{info.get('title') or ''}" await message.reply_video(file_path, caption=caption, quote=True)
+
+os.remove(file_path)
 
 except Exception as e:
     logging.exception("Download failed")
-    await message.reply_text(f"❌ Download failed.\n<b>Error:</b> {str(e)}", quote=True)
+    await message.reply_text(
+        f"❌ Download failed.
+
+<b>Error:</b> {e}", quote=True )
 
