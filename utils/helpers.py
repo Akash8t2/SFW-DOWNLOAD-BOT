@@ -5,15 +5,30 @@ from pyrogram.types import Message
 import yt_dlp  
 from config import Config  
   
-# Ensure download directory exists  
 download_path = Config.DOWNLOAD_PATH if hasattr(Config, 'DOWNLOAD_PATH') else "downloads"  
 os.makedirs(download_path, exist_ok=True)  
   
-# Path to cookies file  
-COOKIES_FILE = "youtube_cookies.txt"  # You already added this in your repo  
+COOKIES_FILE = "youtube_cookies.txt"  
   
+def progress_bar(percent):
+    blocks = int(percent // 10)
+    return "▰" * blocks + "▱" * (10 - blocks)
+
 async def download_media(message: Message, premium: bool):  
     url = message.text.strip()  
+    status_msg = await message.reply_text("Downloading...\n▱▱▱▱▱▱▱▱▱▱ 0%", quote=True)  
+  
+    async def progress_hook(d):  
+        if d['status'] == 'downloading':  
+            percent = d.get('_percent_str', '0.0%').strip().replace('%', '')  
+            try:  
+                percent = float(percent)  
+                bar = progress_bar(percent)  
+                await status_msg.edit_text(f"Downloading...\n{bar} {int(percent)}%")  
+            except:  
+                pass  
+        elif d['status'] == 'finished':  
+            await status_msg.edit_text("✅ Download complete!\n📤 Uploading... 0%")  
   
     opts = {  
         "format": "best",  
@@ -21,9 +36,9 @@ async def download_media(message: Message, premium: bool):
         "noplaylist": True,  
         "quiet": True,  
         "geo_bypass": True,  
+        "progress_hooks": [progress_hook],  
     }  
   
-    # Add cookies if file exists  
     if os.path.exists(COOKIES_FILE):  
         opts["cookiefile"] = COOKIES_FILE  
   
@@ -40,9 +55,8 @@ async def download_media(message: Message, premium: bool):
         size_mb = os.path.getsize(file_path) / (1024 * 1024)  
   
         if not premium and size_mb > Config.MAX_VIDEO_SIZE_MB:  
-            await message.reply_text(  
-                f"❌ File too large ({size_mb:.2f} MB). Only premium users can download videos over {Config.MAX_VIDEO_SIZE_MB} MB.",  
-                quote=True  
+            await status_msg.edit_text(  
+                f"❌ File too large ({size_mb:.2f} MB). Only premium users can download videos over {Config.MAX_VIDEO_SIZE_MB} MB."  
             )  
             os.remove(file_path)  
             return  
@@ -50,19 +64,25 @@ async def download_media(message: Message, premium: bool):
         caption = f"Downloaded via {Config.BOT_USERNAME}\n{info.get('title')}"  
   
         if size_mb > Config.MAX_VIDEO_SIZE_MB and premium:  
-            await message.reply_text(  
-                f"⚠️ File size is {size_mb:.2f} MB, sending link instead:",  
-                disable_web_page_preview=True,  
-                quote=True  
+            await status_msg.edit_text(  
+                f"⚠️ File size is {size_mb:.2f} MB, sending link instead:"  
             )  
             await message.reply_text(info.get('url'), quote=True)  
         else:  
-            await message.reply_video(file_path, caption=caption, quote=True)  
+            async def upload_progress(current, total):  
+                percent = int(current * 100 / total)  
+                bar = progress_bar(percent)  
+                await status_msg.edit_text(f"✅ Download complete!\n📤 Uploading... {percent}% {bar}")  
+  
+            await message.reply_video(  
+                video=file_path,  
+                caption=caption,  
+                quote=True,  
+                progress=upload_progress  
+            )  
   
         os.remove(file_path)  
   
     except Exception:  
         logging.exception("Download failed")  
-        await message.reply_text("❌ Download failed. Try again later.", quote=True)
-
-
+        await status_msg.edit_text("❌ Download failed. Try again later.")
