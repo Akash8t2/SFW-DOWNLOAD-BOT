@@ -1,3 +1,4 @@
+# utils/db.py
 from pymongo import MongoClient
 from datetime import datetime
 from config import Config
@@ -16,10 +17,10 @@ async def add_user(user_id: int):
         })
 
 async def log_usage(user_id: int):
-    users.update_one({"_id": user_id}, {"$inc": {"downloads": 1}})
+    users.update_one({"_id": user_id}, {"$inc": {"downloads": 1}}, upsert=True)
 
 async def set_premium(user_id: int, status: bool = True):
-    users.update_one({"_id": user_id}, {"$set": {"premium": status}})
+    users.update_one({"_id": user_id}, {"$set": {"premium": status}}, upsert=True)
 
 async def get_user_stats(user_id: int) -> dict:
     return users.find_one({"_id": user_id}, {"_id": 0}) or {}
@@ -28,5 +29,5 @@ async def total_users() -> int:
     return users.count_documents({})
 
 async def top_downloaders(limit: int = 10) -> list:
-    cursor = users.find({}).sort("downloads", -1).limit(limit)
+    cursor = users.find().sort("downloads", -1).limit(limit)
     return list(cursor)
