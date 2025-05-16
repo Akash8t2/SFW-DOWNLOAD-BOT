@@ -1,5 +1,4 @@
-# utils/helpers.py
-import os
+nimport os
 import asyncio
 import logging
 import ssl
@@ -30,10 +29,9 @@ async def download_media(client: Client, message: Message, premium: bool):
                 current = float(percent_str.replace('%', ''))
                 if current - progress_data["last_percent"] >= 2:
                     progress_data["last_percent"] = current
-                    asyncio.run_coroutine_threadsafe(
-                        status_msg.edit_text(f"📥 Downloading... {percent_str}"),
-                        loop
-                    )
+                    # FIX: Ensure coroutine is passed
+                    coro = status_msg.edit_text(f"📥 Downloading... {percent_str}")
+                    asyncio.run_coroutine_threadsafe(coro, loop)
             except Exception as e:
                 logging.error(f"Progress Error: {e}", exc_info=True)
 
