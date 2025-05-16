@@ -1,13 +1,14 @@
+# main.py
+import logging
 from pyrogram import Client, filters, enums
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from config import Config
 from utils.db import add_user, log_usage, set_premium, get_user_stats
 from utils.helpers import download_media
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 app = Client(
@@ -29,9 +30,9 @@ async def start(client: Client, message: Message):
     await add_user(message.from_user.id)
     text = (
         f"👋 Hello <b>{message.from_user.first_name}</b>!\n"
-        f"Welcome to <b>{Config.BOT_USERNAME}</b>.\n\n"
-        "🔹 Send me an Instagram, TikTok, YouTube, Pinterest link.\n"
-        "🔹 I'll fetch and send the video without watermark (if supported).\n\n"
+        f"Welcome to <b>@{Config.BOT_USERNAME}</b>.\n\n"
+        "🔹 Send me a link from Instagram, TikTok, YouTube, or Pinterest.\n"
+        "🔹 I’ll send you the media without watermark (if supported).\n\n"
         "🚀 Enjoy your premium downloader experience!"
     )
     await message.reply_text(text, reply_markup=START_MARKUP)
@@ -68,7 +69,7 @@ async def stats_handler(client, callback_query):
 async def handle_private(client: Client, message: Message):
     await log_usage(message.from_user.id)
     user_stats = await get_user_stats(message.from_user.id)
-    premium = user_stats.get("premium", False) if user_stats else False
+    premium = user_stats.get("premium", False)
     await download_media(client, message, premium)
 
 @app.on_message(filters.text & filters.group & filters.regex(r"http"))
