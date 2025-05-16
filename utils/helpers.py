@@ -22,6 +22,7 @@ async def download_media(client: Client, message: Message, premium: bool):
     loop = asyncio.get_running_loop()
     progress_data = {"last_percent": 0}
 
+    # Wrap coroutine creation in function for progress_hook
     def progress_hook(d):
         if d.get("status") == "downloading":
             percent_str = d.get("_percent_str", "0%").strip()
@@ -30,33 +31,27 @@ async def download_media(client: Client, message: Message, premium: bool):
                 if current - progress_data["last_percent"] >= 2:
                     progress_data["last_percent"] = current
                     coro = status_msg.edit_text(f"📥 Downloading... {percent_str}")
-                    asyncio.run_coroutine_threadsafe(coro, loop)
+                    if asyncio.iscoroutine(coro):
+                        asyncio.run_coroutine_threadsafe(coro, loop)
             except Exception as e:
                 logging.error(f"Progress Error: {e}", exc_info=True)
 
     try:
         is_instagram = "instagram.com" in url.lower()
-
-        # Set cookiefile only if file exists
-        cookiefile = None
-        if is_instagram and os.path.exists(INSTAGRAM_COOKIES):
-            cookiefile = INSTAGRAM_COOKIES
-        elif os.path.exists(YOUTUBE_COOKIES):
-            cookiefile = YOUTUBE_COOKIES
-
         opts = {
             "format": "best",
             "noplaylist": True,
             "quiet": True,
             "geo_bypass": True,
-            "nocheckcertificate": not is_instagram,
-            "ssl_verify": False if is_instagram else True,
+            "nocheckcertificate": True,  # <-- FORCE ignore SSL for all
+            "ssl_verify": False,         # <-- FORCE ignore SSL for all
+            "cookiefile": INSTAGRAM_COOKIES if is_instagram and os.path.exists(INSTAGRAM_COOKIES)
+                        else YOUTUBE_COOKIES if os.path.exists(YOUTUBE_COOKIES)
+                        else None,
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0.0.0 Safari/537.36"
                         if is_instagram else None,
-            "verbose": False,
+            "verbose": True
         }
-        if cookiefile:
-            opts["cookiefile"] = cookiefile
 
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = await loop.run_in_executor(None, lambda: ydl.extract_info(url, download=False))
@@ -69,16 +64,18 @@ async def download_media(client: Client, message: Message, premium: bool):
         opts["outtmpl"] = os.path.join(download_path, "%(id)s.%(ext)s")
         opts["progress_hooks"] = [progress_hook]
 
+        # Actually download
         await loop.run_in_executor(None, lambda: yt_dlp.YoutubeDL(opts).download([url]))
-
         file_path = os.path.join(download_path, f"{info['id']}.{info.get('ext', 'mp4')}")
 
         await status_msg.edit_text("✅ Uploading...")
-
-        # Upload without progress callback (saada upload)
         await message.reply_video(
             file_path,
-            caption=f"Downloaded via @{Config.BOT_USERNAME}\n{info.get('title', '')}"
+            caption=f"Downloaded via @{Config.BOT_USERNAME}\n{info.get('title', '')}",
+            progress=lambda current, total: asyncio.run_coroutine_threadsafe(
+                status_msg.edit_text(f"📤 Uploading... {current * 100 / total:.1f}%"),
+                loop
+            ).result()
         )
 
     except yt_dlp.utils.DownloadError as e:
