@@ -63,4 +63,6 @@ async def download_media(message: Message, premium: bool):
   
     except Exception:  
         logging.exception("Download failed")  
-        await message.reply_text("❌ Download failed. Try again later.", quote=True)```
+        await message.reply_text("❌ Download failed. Try again later.", quote=True)
+
+
