@@ -8,6 +8,7 @@ import yt_dlp
 from pyrogram import Client
 from pyrogram.types import Message
 from config import Config
+from urlextract import URLExtract
 
 ssl._create_default_https_context = lambda: ssl.create_default_context(cafile=certifi.where())
 download_path = getattr(Config, 'DOWNLOAD_PATH', 'downloads')
@@ -26,7 +27,13 @@ for f in os.listdir(download_path):
             logging.warning(f"Failed to delete old file {f_path}: {e}")
 
 async def download_media(client: Client, message: Message, premium: bool):
-    url = message.text.strip().split("?")[0]
+    # URL extraction (handles extra text, emoji, etc.)
+    extractor = URLExtract()
+    urls = extractor.find_urls(message.text)
+    if not urls:
+        return await message.reply_text("❌ No valid URL found.")
+    url = urls[0].split("?")[0]
+
     status_msg = await message.reply_text("📥 Starting download...")
     file_path = None
     loop = asyncio.get_running_loop()
@@ -58,8 +65,8 @@ async def download_media(client: Client, message: Message, premium: bool):
             "noplaylist": True,
             "quiet": True,
             "geo_bypass": True,
-            "nocheckcertificate": True,  # For Heroku/hosted environments
-            "ssl_verify": False,         # For Heroku/hosted environments
+            "nocheckcertificate": True,
+            "ssl_verify": False,
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0.0.0 Safari/537.36"
                 if is_instagram else None,
             "verbose": True
@@ -69,6 +76,10 @@ async def download_media(client: Client, message: Message, premium: bool):
 
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = await loop.run_in_executor(None, lambda: ydl.extract_info(url, download=False))
+
+        # Show file size to user (if available)
+        size_mb = (info.get("filesize", 0) or 0) / (1024 * 1024)
+        await status_msg.edit_text(f"📥 File size: {size_mb:.2f} MB\nDownloading...")
 
         max_size = Config.MAX_VIDEO_SIZE_MB * 1024 * 1024
         if not premium and (info.get("filesize") or 0) > max_size:
@@ -90,7 +101,7 @@ async def download_media(client: Client, message: Message, premium: bool):
 
         await status_msg.edit_text("✅ Uploading...")
 
-        # Try-catch block for upload
+        thumbnail = info.get("thumbnail")
         try:
             await message.reply_video(
                 file_path,
@@ -98,7 +109,8 @@ async def download_media(client: Client, message: Message, premium: bool):
                 progress=lambda current, total: asyncio.run_coroutine_threadsafe(
                     status_msg.edit_text(f"📤 Uploading... {current * 100 / total:.1f}%"),
                     loop
-                )
+                ),
+                thumb=thumbnail if thumbnail else None,
             )
         except Exception as e:
             logging.error(f"Upload Error: {e}", exc_info=True)
