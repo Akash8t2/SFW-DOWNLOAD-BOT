@@ -1,6 +1,6 @@
 pyrogram==2.0.106
 tgcrypto==1.2.5
-pymongo==4.5.0
+pymongo
 yt-dlp
 python-dotenv==1.0.0
-instaloader==4.10.1
+instaloader
