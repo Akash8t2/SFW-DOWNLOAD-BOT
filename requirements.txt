@@ -1,9 +1,9 @@
-pyrogram==2.0.106
-tgcrypto==1.2.5
-pymongo==4.6.3
-yt-dlp==2024.04.09
-python-dotenv==1.0.0
-instaloader==4.11
-certifi>=25.1.1
+pyrogram
+tgcrypto
+pymongo
+yt-dlp
+python-dotenv
+instaloader
+certifi
 urlextract
 
