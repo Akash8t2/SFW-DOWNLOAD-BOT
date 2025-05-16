@@ -5,3 +5,5 @@ yt-dlp==2024.04.09
 python-dotenv==1.0.0
 instaloader==4.11
 certifi==2024.2.2
+urlextract
+
